@@ -1,14 +1,18 @@
 PROJ = audiotest
 PIN_DEF = audiotest.pcf
 DEVICE = hx8k
+#DEVICE = up5k
 
 all: $(PROJ).rpt $(PROJ).bin
 
 %.blif: %.v
-	yosys -p 'synth_ice40 -top top -blif $@' $<
+
+	php hexgen.php > sine_table.hex
+	yosys -v 1 -p 'synth_ice40 -top top -blif $@' $<
 
 %.asc: $(PIN_DEF) %.blif
 	arachne-pnr -d 8k  -o $@ -p $^ -P tq144:4k
+	#arachne-pnr -d 5k  -o $@ -p $^ -P sg48
 
 %.bin: %.asc
 	icepack $< $@
