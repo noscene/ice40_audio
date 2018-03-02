@@ -15,11 +15,9 @@ module top (
 	
 	assign SCK = 1'b0;		// sclk connect to GND can handle pcm5102 by internal pll
 
-	reg  [31:0] tmp = 0;
-	reg  [31:0] counter1 ;
-
+	reg   [31:0] tmp = 0;
+	reg   [31:0] counter1 ;
 	wire  [15:0] sin;
-
 	reg   [19:0] sin1;
 	reg   [18:0] sin2;
 	reg   [17:0] sin3;
@@ -63,9 +61,9 @@ module top (
 	// Lookup the current sin values
 	always @(posedge clk) begin
 		counter1 <= counter1 + 1;	
-		case (counter1[3:1])
+		case (counter1[2:0])
 			3'b000:	begin  lutaddr  <= addr1;   	end
-			3'b001:	begin  sin1 	<= sin*4; 	end
+			3'b001:	begin  sin1 	<= sin*6; 	end
 			3'b010:	begin  lutaddr  <= addr2;   	end
 			3'b011:	begin  sin2 	<= sin*3;	end
 			3'b100:	begin  lutaddr  <= addr3;   	end
@@ -75,8 +73,14 @@ module top (
 		endcase
 	end
 	
+	always @(posedge counter1[24]) begin
+		octave <= octave +1;
+	end
+	
+	reg  [2:0] octave=0;
+	
 	// thea settings for 4 bins
-	always @(posedge counter1[12]) begin
+	always @(posedge counter1[5 + octave]) begin
 		addr1 <= addr1+1;
 		addr2 <= addr2+2;
 		addr3 <= addr3+3;
@@ -99,13 +103,13 @@ module PCM5102(clk,left,right,din,bck,lrck);
 	output 			bck;			// pin on pcm5102 bit clock
 	output 			lrck;			// pin on pcm5102 l/r clock can be used outside of this module to create new samples
 	
-	reg [4:0]	i2s_clk;			// 5 Bit Counter 100MHz -> 6.25 MHz dataclk = ca 192Khz SampleRate 4% tolerance ok by datasheet
+	reg [3:0]	i2s_clk;			// 5 Bit Counter 100MHz -> 12.5 MHz dataclk = ca 384Khz SampleRate 4% tolerance ok by datasheet
 	always @(posedge clk) begin
 		i2s_clk 	<= i2s_clk + 1;
 	end	
 
 	reg [5:0]   i2sword = 0;		// 6 bit = 16 steps for left + right
-	always @(negedge i2s_clk[4]) begin
+	always @(negedge i2s_clk[3]) begin
 		lrck	 	<= i2sword[5];
 		din 		<= lrck ? right[15 - i2sword[4:1]] : left[15 - i2sword[4:1]];	// blit data bits
 		bck			<= i2sword[0];
