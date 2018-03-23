@@ -1,0 +1,20 @@
+set_io LED1 39
+set_io LED2 40
+set_io LED3 41
+set_io pa07 43 
+set_io clk 4
+
+
+set_io  LRCK 	25
+set_io  DIN	26
+set_io	BCK	27
+
+set_io	AD_CONV		2
+set_io	AD_RESET	3
+set_io	AD_RDCLK	4
+set_io	AD_CS		6
+set_io	AD_BUSY		9
+set_io	AD_FDATA   10
+set_io	AD_DB7	   11
+set_io	AD_DB8	   12
+

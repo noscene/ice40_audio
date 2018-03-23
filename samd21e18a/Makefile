@@ -18,6 +18,9 @@ CFLAGS+= -mcpu=cortex-m0 -mthumb -g -Os  -fno-exceptions -std=c99
 CFLAGS+= -I xdk-asf -I xdk-asf/include -I xdk-asf/cmsis -I .
 CFLAGS+= -D$(MCUTYPE)
 
+all: $(ELF) bin
+
+
 $(ELF): $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
@@ -38,7 +41,8 @@ clean:
 	rm -f $(OBJS) $(OBJS:.o=.d) $(ELF) startup_stm32f* $(CLEANOTHER) zmSAMD21.bin
 
 debug:  $(ELF)
-	arm-none-eabi-gdb -iex "target extended-remote localhost:3333" $(ELF)
+	arm-none-eabi-gdb -iex "target extended-remote localhost:3333 " -ex "load" -ex "monitor reset" -ex "set confirm off" -ex "quit"  $(ELF)
+#	arm-none-eabi-gdb -iex "target extended-remote 10.0.1.1:3333 " -ex "load" -ex "monitor reset"  $(ELF)
 
 # pull in dependencies
 -include        $(OBJS:.o=.d)

@@ -1,5 +1,5 @@
 #include <samd21.h>
-#include <audiotest.h>
+#include "../audiotest.h"
 
 
 #define byte unsigned char
@@ -301,9 +301,9 @@ int prog_bitstream() {
 
 
   const unsigned int mosiPin = (1<<RPI_ICE_MOSI);
-  const unsigned int size = sizeof(ice40);
+  const unsigned int size = sizeof(audiotest_bin);
   for ( k = 0; k < size; k++) {
-    byte d = ice40[k];
+    byte d = audiotest_bin[k];
 
     if(d==0){
         REG_PORT_OUTCLR0 = mosiPin;  
@@ -371,7 +371,7 @@ void setup(){
 
 void loop(){
         digitalWrite(led,0);
-        delay(10);
+        delay(100);
         digitalWrite(led,1);
         delay(500);
 }
