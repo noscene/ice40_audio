@@ -81,13 +81,13 @@ module top (
 
 	
 	wire   [15:0] left_out;		// left out
-
+/*
 	ALSYNTH add_lut_synth( 	.sample_clk(LRCK),
 							.clk(clk),
 							.pitch_mod(adc1),
 							.audio_out(left_out) );	
 
-
+*/
 
 	PCM5102 dac(.clk(clk),
 				.left(left_out),
@@ -98,7 +98,8 @@ module top (
 				.lrck(LRCK) );
 
 
-
+	NOISE noise(	.clk(LRCK), 
+					.audio_out(left_out) );
 
 
 
@@ -125,8 +126,8 @@ module top (
 
 
 
-/*
 
+/*
 	// Cordic stuff
 	reg  signed [31:0] thea;
 	wire [15:0] cordsin;
@@ -150,8 +151,8 @@ module top (
 		//thea = thea + 10078855; // 440Hz
 	end
 
+*/
 
-*/	
 
 
 // Amplitude of Waveform Harmonics
@@ -165,30 +166,30 @@ module top (
 // http://billauer.co.il/blog/2012/10/signed-arithmetics-verilog/
 // https://stackoverflow.com/questions/24162329/verilog-signed-vs-unsigned-samples-and-first/24165896
 
-/*
+
   	// Generate table of bin values
-  	wire [31:0] morph [0:7];
+//  	wire [31:0] morph [0:7];
   	//					 Saw	   Sqr     Tri     Sin
-	assign morph[7]	= {8'd128 , 8'd128, 8'd128, 8'd128 }; 
-	assign morph[6]	= {8'd64  , 8'd0,   8'd0,	8'd0   }; 
-	assign morph[5]	= {8'd43  , 8'd43,  8'd14,	8'd0   }; 
-	assign morph[4]	= {8'd32  , 8'd0,   8'd0,	8'd0   }; 
-	assign morph[3]	= {8'd26  , 8'd26,  8'd5,	8'd0   }; 
-	assign morph[2]	= {8'd21  , 8'd0,   8'd0,	8'd0   }; 
-	assign morph[1]	= {8'd18  , 8'd18,  8'd3,	8'd0   }; 
-	assign morph[0]	= {8'd16  , 8'd0,   8'd0,	8'd0   }; 
-*/	
+//	assign morph[7]	= {8'd128 , 8'd128, 8'd128, 8'd128 }; 
+//	assign morph[6]	= {8'd64  , 8'd0,   8'd0,	8'd0   }; 
+//	assign morph[5]	= {8'd43  , 8'd43,  8'd14,	8'd0   }; 
+//	assign morph[4]	= {8'd32  , 8'd0,   8'd0,	8'd0   }; 
+//	assign morph[3]	= {8'd26  , 8'd26,  8'd5,	8'd0   }; 
+//	assign morph[2]	= {8'd21  , 8'd0,   8'd0,	8'd0   }; 
+//	assign morph[1]	= {8'd18  , 8'd18,  8'd3,	8'd0   }; 
+//	assign morph[0]	= {8'd16  , 8'd0,   8'd0,	8'd0   }; 
+	
 	
 	wire  [11:0] morph [0:7];
   	//					 Saw	   Sqr     Tri     Sin
-	assign morph[7]	= {11'd16 }; 
-	assign morph[6]	= {11'd0   }; 
-	assign morph[5]	= {11'd0   }; 
-	assign morph[4]	= {11'd0   }; 
-	assign morph[3]	= {11'd4  }; 
+	assign morph[0]	= {11'd8 }; 
+	assign morph[1]	= {11'd3   }; 
 	assign morph[2]	= {11'd0   }; 
-	assign morph[1]	= {11'd0   }; 
-	assign morph[0]	= {11'd0   }; 
+	assign morph[3]	= {11'd0   }; 
+	assign morph[4]	= {11'd0  }; 
+	assign morph[5]	= {11'd0   }; 
+	assign morph[6]	= {11'd0   }; 
+	assign morph[7]	= {11'd0   }; 
 	
 	
 
@@ -213,7 +214,7 @@ module top (
 	wire cordic_clk;	
 		
 	wire  [15:0] cordTemp;
-	
+
 	// assign cordsin = cordTemp <<< 4;
 		
 	CORDIC cordic1 ( 	.clock(cordic_clk), 	
@@ -223,7 +224,7 @@ module top (
 						.y_start(Yin), 
 					    .angle(bin_thea)	
 						);
-
+ 
 
 	parameter ramp = 65536 * 16;
 	
@@ -237,6 +238,9 @@ module top (
 	
 	// assign bin_thea = thea_add;
 	
+	wire  [31:0] cordsum;
+	// assign cordsin = cordsum[31:16];
+	
 	always @(posedge clk) begin
 
 
@@ -248,19 +252,21 @@ module top (
 //			2'b01:	begin  bin_factor8 <= bin_factor32[23:16];  end
 //			2'b10:	begin  bin_factor8 <= bin_factor32[15:8];   end
 //			2'b11:	begin  bin_factor8 <= bin_factor32[7:0];    end 
+
 //		endcase
 		
 		case (stages)	// select Wave form
-			2'b00:	begin  bin_thea <= thea_add * (harmonics +1)    ; 	end
+			2'b00:	begin  bin_thea <= thea_add * 4   ; 	end
 			2'b01:	begin  cordic_clk <= 1'b1;							end
-			2'b10:	begin  sum[harmonics] <=  cordout * 8  ;   end   // !!!!!!!!!!!!!!!!!! bin_factor8 macht das problem
+			2'b10:	begin  sum[harmonics] <=  (cordout ) * bin_factor8  ;   end   // !!!!!!!!!!!!!!!!!! bin_factor8 macht das problem
 			2'b11:	begin  cordic_clk <= 1'b0;	end
 		endcase
 		
 		
 		if(cordic_add_stages == 6'b111111) begin 
-			// cordsin <= (sum[3] + sum[7]);
-			 cordsin <= sum[7] ;
+			 cordsin <= (sum[0]  /*+ sum[1]  + sum[2] */);
+			// cordsin <= cordum <<< 6;
+			// cordsin <= sum[7] ;
 			// sum = 32'd0;
 			thea_add <= thea_add + ramp;
 		end
@@ -268,7 +274,7 @@ module top (
 		cordic_add_stages 	<= cordic_add_stages + 1;	
 
 	end 
- 
+
 
 endmodule
 
@@ -434,6 +440,27 @@ module VCA( vca_in_a, vca_in_b, vca_out,clk);
 endmodule 
 
 
+//------------------------------------------------------------------------------
+//          LFSR Noise
+//------------------------------------------------------------------------------
+module NOISE( clk, audio_out);
+	input clk;
+	output [15:0]	audio_out; 
+	parameter SEED = 32'b10101011101010111010101110101011; // LFSR starting state
+	parameter TAPS = 31'b0000000000000000000000001100010;  // LFSR feedback taps
+	reg [31:0] shift_register;
+	initial shift_register = SEED;
+	always @(posedge clk)
+	begin
+		if(shift_register[31]) begin
+			shift_register[31:1] <= shift_register[30:0]^TAPS;
+		end else begin
+			shift_register[31:1] <= shift_register[30:0];
+		end
+		shift_register[0] <= shift_register[31];
+	end	
+	assign audio_out = shift_register[31:16];
+endmodule
 //------------------------------------------------------------------------------
 //          Additive Synth
 //------------------------------------------------------------------------------
