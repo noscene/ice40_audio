@@ -39,12 +39,12 @@ module top (
 	);
 
 	// monitor adc channel
-	assign LED1 =  !adc1[13];
-	assign LED2 =  !adc1[14]; 	// AD_CONV;
-	assign LED3 =  !adc1[15];	// AD_RDCLK; // pa07;
+	assign LED1 =  !adc1[13];		// assign leds
+	assign LED2 =  !adc1[14]; 	
+	assign LED3 =  !adc1[15];				
 	
 
-	wire signed [15:0]	adc1;		
+	wire  [15:0]	adc1;		
 	wire signed [15:0]	adc2;		
 	wire signed [15:0]	adc3;		
 	wire signed [15:0]	adc4;		
@@ -79,8 +79,7 @@ module top (
 	assign 	right_out_main = 	adc1;	// bypass the VCA for Testing	
 */
 
-	
-	wire   [15:0] left_out;		// left out
+
 /*
 	ALSYNTH add_lut_synth( 	.sample_clk(LRCK),
 							.clk(clk),
@@ -89,46 +88,52 @@ module top (
 
 */
 
+	
+
+
+
+	wire  [15:0] left_out;		// left out
+	wire  [15:0] noise_out;	
+	wire  [15:0] decay_out;	
+	wire mytrigger;
+	
 	PCM5102 dac(.clk(clk),
 				.left(left_out),
-//				.right(right_out_main),
 				.right(cordsin),
 				.din(DIN),
 				.bck(BCK),
 				.lrck(LRCK) );
 
 
+	G2T gate2trigger (	.clk(LRCK),
+						.gate(adc1[15:15]),
+						.trigger(mytrigger) );
+
+
+	DECAY decay (	.clk(LRCK),
+					.trigger(mytrigger),
+					.decayout(decay_out) );
+
+	VCA vca1( 	.clk(clk),
+				.vca_in_a(decay_out),
+				.vca_in_b(noise_out),
+				.vca_out(left_out) );	
+/*
 	NOISE noise(	.clk(LRCK), 
-					.audio_out(left_out) );
-
-
-
-/*
-	// Cordic stuff
-	reg [31:0] thea;
-	wire [15:0] cordsin;
-	wire [11:0] cordout;
-	assign cordsin = cordout << 4;
-	reg  signed  [11:0] Xin = 1000/1.647; 
-	reg  signed  [11:0] Yin = 1;
-	CORDIC cordic1 ( 	.clock(LRCK), 	
-						 // .cosine, 
-						.sine(cordout), 
-						.x_start(Xin), 
-						.y_start(Yin), 
-					    .angle(thea)	
-						);
-
-	always @(posedge clk) begin
-		thea = thea + (adc1[15:0] << 6);
-	end
+					.audio_out(noise_out) );
 */
+	SUPERSAW ssaw(	.clk(LRCK), 
+					.audio_out(noise_out) );
 
 
 
-
-/*
 	// Cordic stuff
+	VCA square( 	.clk(clk),
+					.vca_in_a(adc1),
+					.vca_in_b(adc1),
+					.vca_out(thea_inc) );
+	wire [15:0] thea_inc;
+
 	reg  signed [31:0] thea;
 	wire [15:0] cordsin;
 	wire signed [11:0] cordout;
@@ -146,13 +151,12 @@ module top (
 						);
 
 	always @(posedge LRCK) begin
-		thea = thea + ( adc1 * 8192 );
+		thea = thea + ( thea_inc << 14 );
 		//thea = thea + 22906; // 1Hz
 		//thea = thea + 10078855; // 440Hz
 	end
 
-*/
-
+/* 
 
 
 // Amplitude of Waveform Harmonics
@@ -215,7 +219,7 @@ module top (
 		
 	wire  [15:0] cordTemp;
 
-	// assign cordsin = cordTemp <<< 4;
+	// assi gn cordsin = cordTemp <<< 4;
 		
 	CORDIC cordic1 ( 	.clock(cordic_clk), 	
 						 // .cosine, 
@@ -264,17 +268,17 @@ module top (
 		
 		
 		if(cordic_add_stages == 6'b111111) begin 
-			 cordsin <= (sum[0]  /*+ sum[1]  + sum[2] */);
+			 cordsin <= (sum[0]  );
 			// cordsin <= cordum <<< 6;
 			// cordsin <= sum[7] ;
-			// sum = 32'd0;
-			thea_add <= thea_add + ramp;
+			// sum = 32'd0; 
+			thea_add <= thea_add + ramp; 
 		end
 		
 		cordic_add_stages 	<= cordic_add_stages + 1;	
-
+ 
 	end 
-
+*/
 
 endmodule
 
@@ -321,7 +325,7 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	output 				rdclk;		// data clk 
 	output 				conv;		// start conversion a/b 
 
-	output signed [15:0] 	audio1;			// 1 channel audio data
+	output [15:0] 	audio1;			// 1 channel audio data
 	output signed [15:0] 	audio2;			// 2 channel audio data
 	output signed [15:0] 	audio3;			// 3 channel audio data
 	output signed [15:0] 	audio4;			// 4 channel audio data
@@ -329,6 +333,9 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	output signed [15:0] 	audio6;			// 6 channel audio data
 	output signed [15:0] 	audio7;			// 7 channel audio data
 	output signed [15:0] 	audio8;			// 8 channel audio data
+
+
+	reg signed [15:0] raw_adc1;
 
 	parameter ADC_CLK_DIV = 1;		// clk div by 2
 
@@ -342,13 +349,14 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	always @(posedge adc_clk[ADC_CLK_DIV]) begin
 		if(~adsword[7]) begin
 			case (adsword[6:5])
-				2'b00:	begin  audio1[15 - adsword[4:1] ]  <= db7;  audio5[15 - adsword[4:1] ]  <= db8;   	end
+				2'b00:	begin  raw_adc1[15 - adsword[4:1] ]  <= db7;  audio5[15 - adsword[4:1] ]  <= db8;   	end
 				2'b01:	begin  audio2[15 - adsword[4:1] ]  <= db7;  audio6[15 - adsword[4:1] ]  <= db8;   	end
 				2'b10:	begin  audio3[15 - adsword[4:1] ]  <= db7;  audio7[15 - adsword[4:1] ]  <= db8;   	end
 				2'b11:	begin  audio4[15 - adsword[4:1] ]  <= db7;  audio8[15 - adsword[4:1] ]  <= db8;   	end
 			endcase
 			rdclk		<= adsword[0];
 		end else begin
+			audio1 <= raw_adc1 + 16'h5000;	// h8000 is normal scale but, offset for adc
 			rdclk		<= 1'b1;
 			if(adsword[6:0] == 7'b0000001)
 				conv	 	<= 1'b0;
@@ -439,7 +447,110 @@ module VCA( vca_in_a, vca_in_b, vca_out,clk);
 	
 endmodule 
 
+//------------------------------------------------------------------------------
+//          Gate2Trigger , zMors
+//------------------------------------------------------------------------------
+module G2T( gate,clk,trigger);
+	input 	clk;
+	input 	gate;
+	output 	trigger;
+	
+	reg pre_gate;
+	always @(posedge clk) begin
+		if(!pre_gate && gate) begin
+			trigger <= 1'b1;
+			pre_gate <= 1'b1;
+		end else begin
+			trigger <= 1'b0;
+		end
+		
+		if(!gate) begin
+			pre_gate <= 1'b0;
+		end;
+	end 
+	
+endmodule
+//------------------------------------------------------------------------------
+//          Decay , zMors
+//------------------------------------------------------------------------------
+module DECAY( decay_time, decayout,clk,trigger);
+	input clk;
+	input trigger;
+	input [15:0] decay_time;
+	output [15:0] decayout;
 
+	reg [15:0] 	ramp_down;
+	reg  [31:0] dcy_downsample;
+	reg [14:0] dcycount;
+	
+	assign decayout = dcy_downsample[31:16];
+
+	always @(posedge clk) begin
+		dcycount <= dcycount +1;
+	end
+
+	always @(posedge dcycount[2:2] or posedge trigger) begin
+		if(!trigger ) begin
+			if(ramp_down > 10)
+			ramp_down <= ramp_down - 3;
+		end else begin
+			ramp_down <= 16'h7ffc;
+		end
+	end	
+	
+
+	SB_MAC16 decay_mul (
+	    .A(ramp_down),
+	    .B(ramp_down),
+	    .C(16'b0),
+	    .D(16'b0),
+	    .CLK(clk),
+	    .CE(1'b1),
+	    .IRSTTOP(1'b0),	/* reset */
+	    .IRSTBOT(1'b0), /* reset */
+	    .ORSTTOP(1'b0), /* reset */
+	    .ORSTBOT(1'b0), /* reset */
+	    .AHOLD(1'b0),
+	    .BHOLD(1'b0),
+	    .CHOLD(1'b0),
+	    .DHOLD(1'b0),
+	    .OHOLDTOP(1'b0),
+	    .OHOLDBOT(1'b0),
+	    .OLOADTOP(1'b0),
+	    .OLOADBOT(1'b0),
+	    .ADDSUBTOP(1'b0),
+	    .ADDSUBBOT(1'b0),
+	    .CO(),
+	    .CI(1'b0),
+	    // .SIGNEXTOUT(dcy_dsp_ready)
+	    .O(dcy_downsample)
+	  );
+
+	//16x16 => 32 unsigned pipelined multiply
+	defparam decay_mul.B_SIGNED                  = 1'b0;
+	defparam decay_mul.A_SIGNED                  = 1'b0;
+	defparam decay_mul.MODE_8x8                  = 1'b0;
+
+	defparam decay_mul.BOTADDSUB_CARRYSELECT     = 2'b00;
+	defparam decay_mul.BOTADDSUB_UPPERINPUT      = 1'b0;
+	defparam decay_mul.BOTADDSUB_LOWERINPUT      = 2'b00;
+	defparam decay_mul.BOTOUTPUT_SELECT          = 2'b11;
+
+	defparam decay_mul.TOPADDSUB_CARRYSELECT     = 2'b00;
+	defparam decay_mul.TOPADDSUB_UPPERINPUT      = 1'b0;
+	defparam decay_mul.TOPADDSUB_LOWERINPUT      = 2'b00;
+	defparam decay_mul.TOPOUTPUT_SELECT          = 2'b11;
+
+	defparam decay_mul.PIPELINE_16x16_MULT_REG2  = 1'b1;
+	defparam decay_mul.PIPELINE_16x16_MULT_REG1  = 1'b1;
+	defparam decay_mul.BOT_8x8_MULT_REG          = 1'b1;
+	defparam decay_mul.TOP_8x8_MULT_REG          = 1'b1;
+	defparam decay_mul.D_REG                     = 1'b0;
+	defparam decay_mul.B_REG                     = 1'b1;
+	defparam decay_mul.A_REG                     = 1'b1;
+	defparam decay_mul.C_REG                     = 1'b0;
+	
+endmodule 
 //------------------------------------------------------------------------------
 //          LFSR Noise
 //------------------------------------------------------------------------------
@@ -461,6 +572,37 @@ module NOISE( clk, audio_out);
 	end	
 	assign audio_out = shift_register[31:16];
 endmodule
+
+//------------------------------------------------------------------------------
+//          LFSR Noise
+//------------------------------------------------------------------------------
+module SUPERSAW( clk, audio_out);
+	input clk;
+	output [15:0]	audio_out; 
+	reg [31:0] ramp1,ramp2,ramp3,ramp4,ramp5,ramp6,ramp7,ramp8;
+	wire [12:0] s1,s2,s3,s4,s5,s6,s7,s8;
+	assign s1 = ramp1[31:19]; 
+	assign s2 = ramp2[31:19];
+	assign s3 = ramp3[31:19];
+	assign s4 = ramp4[31:19];
+	assign s5 = ramp5[31:19];
+	assign s6 = ramp6[31:19];
+	assign s7 = ramp7[31:19];
+	assign s8 = ramp8[31:19];
+	always @(posedge clk)
+	begin
+		ramp1 <= ramp1 + 5078855;
+		ramp2 <= ramp2 + 5098855;
+		ramp3 <= ramp3 + 5118855;
+		ramp4 <= ramp4 + 5138855;
+		ramp5 <= ramp5 + 5148855;
+		ramp6 <= ramp6 + 5158855;
+		ramp7 <= ramp7 + 5168855;
+		ramp8 <= ramp8 + 5178855;
+	end	
+	assign audio_out = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8;
+endmodule
+
 //------------------------------------------------------------------------------
 //          Additive Synth
 //------------------------------------------------------------------------------
@@ -526,10 +668,33 @@ module ALSYNTH(sample_clk, clk, pitch_mod, audio_out);
 		end
 	end
 endmodule
+/*
+// https://github.com/Cognoscan/VerilogCogs/blob/master/oscillator.v
+// Simple sinusoidal oscillator. Period depends on SHIFT and MULT
+module oscillator #(
+    parameter WIDTH = 12,
+    parameter SHIFT = 6,
+    //parameter MULT = 1, 	// Should usually be one unless only using in simulation
+    parameter START = 2**(WIDTH-1) * 0.9
+) (
+    input clk,
+    input rst,
+    output reg signed [WIDTH-1:0] cos,
+    output reg signed [WIDTH-1:0] sin
+);
 
+always @(posedge clk) begin 
+    if (rst) begin
+        cos <= START;
+        sin <= 'd0;
+    end else begin
+        cos <= cos - ((sin + (cos >>> SHIFT)) >>> SHIFT);
+        sin <= sin + (cos >>> SHIFT);
+    end
+end
 
-
-
+endmodule
+*/
 
 //------------------------------------------------------------------------------
 //          CORDIC
