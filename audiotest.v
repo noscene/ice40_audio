@@ -39,19 +39,12 @@ module top (
 	);
 
 	// monitor adc channel
-	assign LED1 =  !adc1[13];		// assign leds
-	assign LED2 =  !adc1[14]; 	
-	assign LED3 =  !adc1[15];				
+	assign LED1 =  !adc5[13];		// assign leds
+	assign LED2 =  !adc5[14]; 	
+	assign LED3 =  !adc5[15]; 				
 	
 
-	wire  [15:0]	adc1;		
-	wire signed [15:0]	adc2;		
-	wire signed [15:0]	adc3;		
-	wire signed [15:0]	adc4;		
-	wire signed [15:0]	adc5;		
-	wire signed [15:0]	adc6;		
-	wire signed [15:0]	adc7;		
-	wire signed [15:0]	adc8;		
+	wire  [15:0]	adc1,adc2,adc3,adc4,adc5,adc6,adc7,adc8;		
 		
 		
 	AD7606 adc( .clk(clk),
@@ -93,13 +86,14 @@ module top (
 
 
 	wire  [15:0] left_out;		// left out
+	wire  [15:0] right_out;		// left out
 	wire  [15:0] noise_out;	
 	wire  [15:0] decay_out;	
 	wire mytrigger;
 	
 	PCM5102 dac(.clk(clk),
 				.left(left_out),
-				.right(cordsin),
+				.right(right_out),
 				.din(DIN),
 				.bck(BCK),
 				.lrck(LRCK) );
@@ -110,22 +104,73 @@ module top (
 						.trigger(mytrigger) );
 
 
-	DECAY decay (	.clk(LRCK),
+	DECAY decay (	.clk(clk),
 					.trigger(mytrigger),
+					.decay_time(adc2),
 					.decayout(decay_out) );
 
 	VCA vca1( 	.clk(clk),
 				.vca_in_a(decay_out),
 				.vca_in_b(noise_out),
 				.vca_out(left_out) );	
+
+
 /*
 	NOISE noise(	.clk(LRCK), 
 					.audio_out(noise_out) );
 */
 	SUPERSAW ssaw(	.clk(LRCK), 
+					.pitch(adc5),
 					.audio_out(noise_out) );
 
+/*
 
+	reg [15:0] thea_sin2;
+	reg dir;	
+	wire [15:0] cordsin;
+	assign cordsin = thea_sin2 + 16'h8000;
+	always @(posedge clk)	begin
+		if (dir == 1'b0)	begin
+			if (thea_sin2==16'b1111111111111111)  begin
+		    	dir <= 1'b1;
+    			thea_sin2<=thea_sin2-1;
+  			end
+  			else 
+    			thea_sin2<=thea_sin2+1; 
+			end
+		else begin
+			if(thea_sin2==16'b0000000000000000) begin
+				dir <= 1'b0;
+				thea_sin2<=thea_sin2+1;
+			end
+		else 
+			thea_sin2<=thea_sin2-1; 
+		end
+	end 
+
+
+*/
+
+/*
+
+	TRI triOsc(		.clk(clk), 
+					.pitch(adc5),
+					.audio_out(left_out) );
+
+*/	
+	
+	reg [9:0] thea_sin2;		
+	always @(posedge LRCK)	begin
+		thea_sin2<=thea_sin2+2; 
+	end
+		
+	mem_2sin so2(	.clk(clk), 
+					.addr(thea_sin2), 
+					.sin_out(right_out));
+
+
+
+/*
 
 	// Cordic stuff
 	VCA square( 	.clk(clk),
@@ -295,7 +340,7 @@ module PCM5102(clk,left,right,din,bck,lrck);
 	output 			bck;			// pin on pcm5102 bit clock
 	output 			lrck;			// pin on pcm5102 l/r clock can be used outside of this module to create new samples
 	
-	parameter DAC_CLK_DIV_BITS = 1;	// 1 = ca 384Khz, 2 = 192Khz, 3 = 96Khz, 4 = 48Khz 
+	parameter DAC_CLK_DIV_BITS = 2;	// 1 = ca 384Khz, 2 = 192Khz, 3 = 96Khz, 4 = 48Khz 
 
 	reg [DAC_CLK_DIV_BITS:0]	i2s_clk;			// 2 Bit Counter 48MHz -> 6,0 MHz bck = ca 187,5 Khz SampleRate 4% tolerance ok by datasheet
 	always @(posedge clk) begin
@@ -305,7 +350,7 @@ module PCM5102(clk,left,right,din,bck,lrck);
 	reg [5:0]   i2sword = 0;		// 6 bit = 16 steps for left + right
 	always @(negedge i2s_clk[DAC_CLK_DIV_BITS]) begin
 		lrck	 	<= i2sword[5];
-		din 		<= lrck ? right[15 - i2sword[4:1]] : left[15 - i2sword[4:1]];	// blit data bits
+		din 		<= lrck ? right[16 - i2sword[4:1]] : left[16 - i2sword[4:1]];	// blit data bits
 		bck			<= i2sword[0];
 		i2sword		<= i2sword + 1;
 	end	
@@ -325,22 +370,14 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	output 				rdclk;		// data clk 
 	output 				conv;		// start conversion a/b 
 
-	output [15:0] 	audio1;			// 1 channel audio data
-	output signed [15:0] 	audio2;			// 2 channel audio data
-	output signed [15:0] 	audio3;			// 3 channel audio data
-	output signed [15:0] 	audio4;			// 4 channel audio data
-	output signed [15:0] 	audio5;			// 5 channel audio data
-	output signed [15:0] 	audio6;			// 6 channel audio data
-	output signed [15:0] 	audio7;			// 7 channel audio data
-	output signed [15:0] 	audio8;			// 8 channel audio data
+	output [15:0] 	audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8;			// 1 channel audio data
 
-
-	reg signed [15:0] raw_adc1;
+	reg signed [15:0] raw_adc1,raw_adc2,raw_adc3,raw_adc4,raw_adc5,raw_adc6,raw_adc7,raw_adc8;
 
 	parameter ADC_CLK_DIV = 1;		// clk div by 2
 
-	reg [ADC_CLK_DIV:0]	adc_clk;	// clk divider counter
-	reg [7:0]   adsword;			// 8 bit = 16 steps for 4 channels + wait time
+	reg [ADC_CLK_DIV:0]	adc_clk;		// clk divider counter
+	reg [7:0]   		adsword;		// 8 bit = 16 steps for 4 channels + wait time
 		
 	always @(posedge clk) begin
 		adc_clk 	<= adc_clk + 1;
@@ -349,14 +386,22 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	always @(posedge adc_clk[ADC_CLK_DIV]) begin
 		if(~adsword[7]) begin
 			case (adsword[6:5])
-				2'b00:	begin  raw_adc1[15 - adsword[4:1] ]  <= db7;  audio5[15 - adsword[4:1] ]  <= db8;   	end
-				2'b01:	begin  audio2[15 - adsword[4:1] ]  <= db7;  audio6[15 - adsword[4:1] ]  <= db8;   	end
-				2'b10:	begin  audio3[15 - adsword[4:1] ]  <= db7;  audio7[15 - adsword[4:1] ]  <= db8;   	end
-				2'b11:	begin  audio4[15 - adsword[4:1] ]  <= db7;  audio8[15 - adsword[4:1] ]  <= db8;   	end
+				2'b00:	begin  raw_adc1[15 - adsword[4:1] ]  <= db7;  raw_adc5[15 - adsword[4:1] ]  <= db8;   	end
+				2'b01:	begin  raw_adc2[15 - adsword[4:1] ]  <= db7;  raw_adc6[15 - adsword[4:1] ]  <= db8;   	end
+				2'b10:	begin  raw_adc3[15 - adsword[4:1] ]  <= db7;  raw_adc7[15 - adsword[4:1] ]  <= db8;   	end
+				2'b11:	begin  raw_adc4[15 - adsword[4:1] ]  <= db7;  raw_adc8[15 - adsword[4:1] ]  <= db8;   	end
 			endcase
 			rdclk		<= adsword[0];
 		end else begin
 			audio1 <= raw_adc1 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio2 <= raw_adc2 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio3 <= raw_adc3 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio4 <= raw_adc4 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio5 <= raw_adc5 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio6 <= raw_adc6 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio7 <= raw_adc7 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio8 <= raw_adc8 + 16'h5000;	// h8000 is normal scale but, offset for adc
+
 			rdclk		<= 1'b1;
 			if(adsword[6:0] == 7'b0000001)
 				conv	 	<= 1'b0;
@@ -380,6 +425,34 @@ module mem_sin( addr, sin_out);
  		$readmemh("sine_table.hex", my_memory);
 	end
 	assign	sin_out = my_memory[addr];
+endmodule 
+
+
+
+//------------------------------------------------------------------------------
+//          BRAM LUT sineWave 4 Quadrant 256x16 -> 1024x16
+//------------------------------------------------------------------------------
+// http://www.fpga4fun.com/DDS2.html
+module mem_2sin(clk, addr, sin_out);
+	input clk;
+	input [9:0] addr;
+	output [15:0] sin_out;	
+	
+	wire [8:0] ram_adr;
+	assign ram_adr = addr[8] ? ~addr[7:0] : addr[7:0];
+		
+	reg [15:0] my_memory2 [0:256];
+	initial begin
+ 		$readmemh("sin_pi2.hex", my_memory2);
+	end
+	
+	wire [15:0] sine_1sym;  // sine with 1 symmetry
+
+	always @(posedge clk) sine_1sym <=  my_memory2[ram_adr] >> 1;	
+	
+	wire [15:0] sine_2sym = addr[9] ? {1'b0,-sine_1sym} : {1'b1,sine_1sym};  // second symmetry
+	
+	always @(posedge clk) sin_out <= sine_2sym ;
 endmodule 
 
 //------------------------------------------------------------------------------
@@ -479,20 +552,28 @@ module DECAY( decay_time, decayout,clk,trigger);
 	input [15:0] decay_time;
 	output [15:0] decayout;
 
-	reg [15:0] 	ramp_down;
-	reg  [31:0] dcy_downsample;
-	reg [14:0] dcycount;
+	reg [15:0] ramp_down;
+	reg [31:0] dcy_downsample;
+	reg [15:0] dcycount;
 	
-	assign decayout = dcy_downsample[31:16];
+//	assign decayout = dcy_downsample[31:16];
+	assign decayout = ramp_down;
 
+	reg dclk;
 	always @(posedge clk) begin
-		dcycount <= dcycount +1;
+		if(dcycount == 0) begin
+			dcycount <= decay_time[15:4];
+			dclk <= 1;
+		end else begin
+			dcycount <= dcycount - 1;
+			dclk <= 0;
+		end
 	end
 
-	always @(posedge dcycount[2:2] or posedge trigger) begin
+	always @(posedge dclk or posedge trigger) begin
 		if(!trigger ) begin
-			if(ramp_down > 10)
-			ramp_down <= ramp_down - 3;
+			if(ramp_down > 1)
+			ramp_down <= ramp_down - 1;
 		end else begin
 			ramp_down <= 16'h7ffc;
 		end
@@ -574,10 +655,12 @@ module NOISE( clk, audio_out);
 endmodule
 
 //------------------------------------------------------------------------------
-//          LFSR Noise
+//          SUPERSAW Oscillator
 //------------------------------------------------------------------------------
-module SUPERSAW( clk, audio_out);
+module SUPERSAW( clk,pitch, audio_out);
 	input clk;
+	input [15:0] pitch;
+	wire [23:0]  pitch_int ;
 	output [15:0]	audio_out; 
 	reg [31:0] ramp1,ramp2,ramp3,ramp4,ramp5,ramp6,ramp7,ramp8;
 	wire [12:0] s1,s2,s3,s4,s5,s6,s7,s8;
@@ -589,20 +672,51 @@ module SUPERSAW( clk, audio_out);
 	assign s6 = ramp6[31:19];
 	assign s7 = ramp7[31:19];
 	assign s8 = ramp8[31:19];
-	always @(posedge clk)
+	
+	assign pitch_int[23:7] = pitch[15:0] << 1;
+	assign pitch_int[6:0] = 0 ;
+	
+	always @(posedge clk) 
 	begin
-		ramp1 <= ramp1 + 5078855;
-		ramp2 <= ramp2 + 5098855;
-		ramp3 <= ramp3 + 5118855;
-		ramp4 <= ramp4 + 5138855;
-		ramp5 <= ramp5 + 5148855;
-		ramp6 <= ramp6 + 5158855;
-		ramp7 <= ramp7 + 5168855;
-		ramp8 <= ramp8 + 5178855;
+		ramp1 <= ramp1 + pitch_int +  78855 ; 
+		ramp2 <= ramp2 + pitch_int +  98851 ;
+		ramp3 <= ramp3 + pitch_int + 118853 ;
+		ramp4 <= ramp4 + pitch_int + 138857 ;
+		ramp5 <= ramp5 + pitch_int + 148853 ;
+		ramp6 <= ramp6 + pitch_int + 158855 ;
+		ramp7 <= ramp7 + pitch_int + 168857 ;
+		ramp8 <= ramp8 + pitch_int + 178851 ;
 	end	
 	assign audio_out = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8;
 endmodule
 
+
+//------------------------------------------------------------------------------
+//          TRI Oscillator
+//------------------------------------------------------------------------------
+module TRI( clk,pitch, audio_out);
+	// Triangle
+	input clk;
+	input [15:0] pitch;
+	output [15:0]	audio_out;
+		
+	reg [15:0] thea_sin2;
+	
+	reg dir;	
+	assign audio_out = thea_sin2;
+		
+	always @(negedge thea_sin2[15]) begin
+		dir <= !dir;
+	end
+	
+	always @(posedge clk) begin
+		if(dir)
+		thea_sin2 <= thea_sin2 +1;
+		else
+		thea_sin2 <= thea_sin2 -1;
+	end
+endmodule	
+/*
 //------------------------------------------------------------------------------
 //          Additive Synth
 //------------------------------------------------------------------------------
@@ -658,7 +772,7 @@ module ALSYNTH(sample_clk, clk, pitch_mod, audio_out);
 	reg [15:0] pitch ; 
 	always @(posedge clk) begin
 		pitch <= pitch + 1;
-		if(pitch == 15'h7fff) begin
+		if(pitch == 15'h7fff) begin 
 			pitch <= pitch_mod[14:0];	// reset countdown
 			addr1 <= addr1+1;			// increment all 4 bins
 			addr2 <= addr2+2;
@@ -668,7 +782,7 @@ module ALSYNTH(sample_clk, clk, pitch_mod, audio_out);
 		end
 	end
 endmodule
-/*
+
 // https://github.com/Cognoscan/VerilogCogs/blob/master/oscillator.v
 // Simple sinusoidal oscillator. Period depends on SHIFT and MULT
 module oscillator #(
