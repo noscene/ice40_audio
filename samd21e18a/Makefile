@@ -42,6 +42,7 @@ clean:
 
 debug:  $(ELF)
 	arm-none-eabi-gdb -iex "target extended-remote localhost:3333 " -ex "load" -ex "monitor reset" -ex "set confirm off" -ex "quit"  $(ELF)
+#	arm-none-eabi-gdb -iex "target extended-remote localhost:3333 " -ex "load" -ex "monitor reset"  $(ELF)
 #	arm-none-eabi-gdb -iex "target extended-remote 10.0.1.1:3333 " -ex "load" -ex "monitor reset"  $(ELF)
 
 # pull in dependencies
