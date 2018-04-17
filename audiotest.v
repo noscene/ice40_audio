@@ -39,9 +39,9 @@ module top (
 	);
 
 	// monitor adc channel
-	assign LED1 =  !adc5[13];		// assign leds
-	assign LED2 =  !adc5[14]; 	
-	assign LED3 =  !adc5[15]; 				
+	assign LED1 =  !adc1[13];		// assign leds
+	assign LED2 =  !adc1[14]; 	
+	assign LED3 =  !adc1[15]; 				
 	
 
 	wire  [15:0]	adc1,adc2,adc3,adc4,adc5,adc6,adc7,adc8;		
@@ -89,6 +89,7 @@ module top (
 	wire  [15:0] right_out;		// left out
 	wire  [15:0] noise_out;	
 	wire  [15:0] decay_out;	
+	wire  [15:0] from_vca;	
 	wire mytrigger;
 	
 	PCM5102 dac(.clk(clk),
@@ -112,8 +113,10 @@ module top (
 	VCA vca1( 	.clk(clk),
 				.vca_in_a(decay_out),
 				.vca_in_b(noise_out),
-				.vca_out(left_out) );	
+				.vca_out(from_vca) );	
 
+	
+	B2UNI16 bu1(	.clk(clk), .in(adc1), .out(left_out));
 
 /*
 	NOISE noise(	.clk(LRCK), 
@@ -123,42 +126,13 @@ module top (
 					.pitch(adc5),
 					.audio_out(noise_out) );
 
-/*
 
-	reg [15:0] thea_sin2;
-	reg dir;	
-	wire [15:0] cordsin;
-	assign cordsin = thea_sin2 + 16'h8000;
-	always @(posedge clk)	begin
-		if (dir == 1'b0)	begin
-			if (thea_sin2==16'b1111111111111111)  begin
-		    	dir <= 1'b1;
-    			thea_sin2<=thea_sin2-1;
-  			end
-  			else 
-    			thea_sin2<=thea_sin2+1; 
-			end
-		else begin
-			if(thea_sin2==16'b0000000000000000) begin
-				dir <= 1'b0;
-				thea_sin2<=thea_sin2+1;
-			end
-		else 
-			thea_sin2<=thea_sin2-1; 
-		end
-	end 
-
-
-*/
-
-/*
-
-	TRI triOsc(		.clk(clk), 
+	SAW triOsc(		.clk(clk), 
 					.pitch(adc5),
-					.audio_out(left_out) );
+					.audio_out(right_out) );
 
-*/	
 	
+/*	
 	reg [9:0] thea_sin2;		
 	always @(posedge LRCK)	begin
 		thea_sin2<=thea_sin2+2; 
@@ -168,7 +142,7 @@ module top (
 					.addr(thea_sin2), 
 					.sin_out(right_out));
 
-
+*/
 
 /*
 
@@ -327,6 +301,22 @@ module top (
 
 endmodule
 
+//------------------------------------------------------------------------------
+//          B2UNI16 bipolar to unipolar
+//------------------------------------------------------------------------------
+module B2UNI16(clk,in,out);
+	input 			clk;	
+	input [15:0]	in;			// in 16bit 
+	output [15:0]	out;		// out 16bit 
+
+	always @(negedge clk)	begin
+		if(in[15])
+			out = {in[15], (~in[14:0] + 'b1)};
+		else
+			out = 16'h8000 - in;
+	end 
+endmodule
+
 
 
 //------------------------------------------------------------------------------
@@ -347,10 +337,18 @@ module PCM5102(clk,left,right,din,bck,lrck);
 		i2s_clk 	<= i2s_clk + 1;
 	end	
 
+	reg [15:0] l2c;
+	reg [15:0] r2c;
+
+	always @(negedge i2sword[5]) begin
+		l2c <= left;
+		r2c <= right; 
+	end	
+
 	reg [5:0]   i2sword = 0;		// 6 bit = 16 steps for left + right
 	always @(negedge i2s_clk[DAC_CLK_DIV_BITS]) begin
 		lrck	 	<= i2sword[5];
-		din 		<= lrck ? right[16 - i2sword[4:1]] : left[16 - i2sword[4:1]];	// blit data bits
+		din 		<= lrck ? r2c[16 - i2sword[4:1]] : l2c[16 - i2sword[4:1]];	// blit data bits
 		bck			<= i2sword[0];
 		i2sword		<= i2sword + 1;
 	end	
@@ -372,7 +370,7 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 
 	output [15:0] 	audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8;			// 1 channel audio data
 
-	reg signed [15:0] raw_adc1,raw_adc2,raw_adc3,raw_adc4,raw_adc5,raw_adc6,raw_adc7,raw_adc8;
+	reg [15:0] raw_adc1,raw_adc2,raw_adc3,raw_adc4,raw_adc5,raw_adc6,raw_adc7,raw_adc8;
 
 	parameter ADC_CLK_DIV = 1;		// clk div by 2
 
@@ -382,6 +380,7 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 	always @(posedge clk) begin
 		adc_clk 	<= adc_clk + 1;
 	end	
+
 
 	always @(posedge adc_clk[ADC_CLK_DIV]) begin
 		if(~adsword[7]) begin
@@ -393,7 +392,7 @@ module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,r
 			endcase
 			rdclk		<= adsword[0];
 		end else begin
-			audio1 <= raw_adc1 + 16'h5000;	// h8000 is normal scale but, offset for adc
+			audio1 <= raw_adc1 + 16'h8000;	// h8000 is normal scale but, offset for adc
 			audio2 <= raw_adc2 + 16'h5000;	// h8000 is normal scale but, offset for adc
 			audio3 <= raw_adc3 + 16'h5000;	// h8000 is normal scale but, offset for adc
 			audio4 <= raw_adc4 + 16'h5000;	// h8000 is normal scale but, offset for adc
@@ -692,29 +691,68 @@ endmodule
 
 
 //------------------------------------------------------------------------------
+//          SAW Oscillator
+//------------------------------------------------------------------------------
+module SAW( clk,pitch, audio_out);
+	input 				clk;
+	input [15:0] 		pitch;
+	output reg [15:0]	audio_out;
+	reg [15:0] tmp;
+		
+
+	// Alles wieder grade biegen!
+	always @(negedge clk)	begin
+		if(tmp[15])
+			audio_out = {tmp[15], (~tmp[14:0] + 'b1)};
+		else
+			audio_out = 16'h8000 - tmp;
+	end 
+
+		
+	always @(posedge clk) begin
+		tmp <= tmp - 2;
+	end
+endmodule	
+//------------------------------------------------------------------------------
 //          TRI Oscillator
 //------------------------------------------------------------------------------
 module TRI( clk,pitch, audio_out);
-	// Triangle
-	input clk;
-	input [15:0] pitch;
-	output [15:0]	audio_out;
-		
-	reg [15:0] thea_sin2;
-	
-	reg dir;	
-	assign audio_out = thea_sin2;
-		
-	always @(negedge thea_sin2[15]) begin
-		dir <= !dir;
-	end
-	
-	always @(posedge clk) begin
-		if(dir)
-		thea_sin2 <= thea_sin2 +1;
+	input 				clk;
+	input [15:0]    	pitch;
+	output reg [15:0]	audio_out;
+	reg count_down;
+	reg [15:0] tmp;
+
+
+
+	// Alles wieder grade biegen!
+	always @(negedge clk)	begin
+		if(tmp[15])
+			audio_out = {tmp[15], (~tmp[14:0] + 'b1)};
 		else
-		thea_sin2 <= thea_sin2 -1;
-	end
+			audio_out = 16'h8000 - tmp;
+	end 
+
+
+
+		
+	always @(negedge clk)	begin
+		if (count_down == 1'b0)	begin
+	  		if (tmp==16'hefff) begin
+			    count_down <= 1'b1;
+    			tmp<=tmp-1;
+  			end	else begin
+    			tmp<=tmp+1; 
+    		end
+		end else begin
+		  	if(tmp == 16'h2000)  begin
+		    	count_down <= 1'b0;
+		    	tmp<=tmp+1;
+	  		end else begin
+	    		tmp<=tmp-1; 
+			end
+		end
+	end 
 endmodule	
 /*
 //------------------------------------------------------------------------------
