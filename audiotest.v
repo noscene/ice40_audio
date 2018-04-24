@@ -17,26 +17,13 @@ module top (
 	output AD_CONV,
 	output AD_RESET,
 	output AD_RDCLK,
-	output AD_CS
-	); 
+	output AD_CS ); 
 	
 	assign AD_RESET  = 1'b0; 
-	assign AD_CS	 = 1'b0; 	
-	
-	
-	// assign SCK = 1'b0;		// sclk connect to GND can handle pcm5102 by internal pll
-	// reg   [31:0] tmp = 0;
-	// reg    [15:0] right_out = 0;		// right out
-
 
 	// ice40up5k 48Mhz internal oscillator
 	wire clk;
-	SB_HFOSC inthosc (
-	  .CLKHFPU(1'b1),
-	  .CLKHFEN(1'b1),
-	  //.CLKHF_DIV(2'b00),
-	  .CLKHF(clk)
-	);
+	SB_HFOSC inthosc ( .CLKHFPU(1'b1), .CLKHFEN(1'b1), .CLKHF(clk) );
 
 	// monitor adc channel
 	assign LED1 =  !adc1[13];		// assign leds
@@ -47,41 +34,11 @@ module top (
 	wire  [15:0]	adc1,adc2,adc3,adc4,adc5,adc6,adc7,adc8;		
 		
 		
-	AD7606 adc( .clk(clk),
-				.audio1(adc1),
-				.audio2(adc2),
-				.audio3(adc3),
-				.audio4(adc4),
-				.audio5(adc5),
-				.audio6(adc6),
-				.audio7(adc7),
-				.audio8(adc8),
-				.fdata(AD_FDATA),
-				.busy(AD_BUSY),
-				.db7(AD_DB7),
-				.db8(AD_DB8),
-				.rdclk(AD_RDCLK),
-				.conv(AD_CONV)
-				);
-/*	
-	wire [15:0] right_out_main;			
-	VCA vca1( 	.clk(clk),
-				.vca_in_a(adc1),
-				.vca_in_b(left_out[19:4]),
-				.vca_out(right_out_main) );				
-	assign 	right_out_main = 	adc1;	// bypass the VCA for Testing	
-*/
-
-
-/*
-	ALSYNTH add_lut_synth( 	.sample_clk(LRCK),
-							.clk(clk),
-							.pitch_mod(adc1),
-							.audio_out(left_out) );	
-
-*/
-
-	
+	AD7606 adc( .clk(clk),	
+				.audio1(adc1),	.audio2(adc2),	.audio3(adc3),	.audio4(adc4),
+				.audio5(adc5),	.audio6(adc6),	.audio7(adc7),	.audio8(adc8),
+				.fdata(AD_FDATA),	.busy(AD_BUSY),	.db7(AD_DB7),	.db8(AD_DB8),	
+				.rdclk(AD_RDCLK),	.conv(AD_CONV), .cs(AD_CS) );
 
 
 
@@ -116,7 +73,7 @@ module top (
 				.vca_out(from_vca) );	
 
 	
-	B2UNI16 bu1(	.clk(clk), .in(adc1), .out(left_out));
+	B2UNI16 bu1(	.clk(clk), .in(adc5), .out(left_out));
 
 /*
 	NOISE noise(	.clk(LRCK), 
@@ -126,23 +83,27 @@ module top (
 					.pitch(adc5),
 					.audio_out(noise_out) );
 
-
+/*
 	SAW triOsc(		.clk(clk), 
 					.pitch(adc5),
 					.audio_out(right_out) );
 
-	
-/*	
+*/	
 	reg [9:0] thea_sin2;		
 	always @(posedge LRCK)	begin
 		thea_sin2<=thea_sin2+2; 
 	end
-		
+	
+	wire  [15:0] mysinosc;	
 	mem_2sin so2(	.clk(clk), 
 					.addr(thea_sin2), 
-					.sin_out(right_out));
+					.sin_out(mysinosc));
+	
+	VCA vca2( 	.clk(clk),
+				.vca_in_a(adc1),
+				.vca_in_b(mysinosc),
+				.vca_out(right_out) );
 
-*/
 
 /*
 
@@ -176,7 +137,27 @@ module top (
 	end
 
 /* 
+/*	
+	wire [15:0] right_out_main;			
+	VCA vca1( 	.clk(clk),
+				.vca_in_a(adc1),
+				.vca_in_b(left_out[19:4]),
+				.vca_out(right_out_main) );				
+	assign 	right_out_main = 	adc1;	// bypass the VCA for Testing	
+*/
 
+
+/*
+	ALSYNTH add_lut_synth( 	.sample_clk(LRCK),
+							.clk(clk),
+							.pitch_mod(adc1),
+							.audio_out(left_out) );	
+
+*/
+
+	
+
+/*
 
 // Amplitude of Waveform Harmonics
 // Harmonic       F     2F     3F     4F     5F     6F     7F     8F     9F 
@@ -214,7 +195,7 @@ module top (
 	assign morph[6]	= {11'd0   }; 
 	assign morph[7]	= {11'd0   }; 
 	
-	
+	 
 
 	reg [5:0] cordic_add_stages;
 	wire [31:0]  thea_add; 
@@ -249,7 +230,7 @@ module top (
 						);
  
 
-	parameter ramp = 65536 * 16;
+	parameter ramp = 65536 * 16; 
 	
 	reg signed [22:0] produkt;
 	reg [1:0] stages;
@@ -279,7 +260,7 @@ module top (
 //		endcase
 		
 		case (stages)	// select Wave form
-			2'b00:	begin  bin_thea <= thea_add * 4   ; 	end
+			2'b00:	begin  bin_thea <= thea_add * 4   ; 	end 
 			2'b01:	begin  cordic_clk <= 1'b1;							end
 			2'b10:	begin  sum[harmonics] <=  (cordout ) * bin_factor8  ;   end   // !!!!!!!!!!!!!!!!!! bin_factor8 macht das problem
 			2'b11:	begin  cordic_clk <= 1'b0;	end
@@ -302,22 +283,20 @@ module top (
 endmodule
 
 //------------------------------------------------------------------------------
-//          B2UNI16 bipolar to unipolar
+//          B2UNI16 2's complement Sign convert
 //------------------------------------------------------------------------------
+// https://www.edaboard.com/showthread.php?t=168886
 module B2UNI16(clk,in,out);
 	input 			clk;	
 	input [15:0]	in;			// in 16bit 
 	output [15:0]	out;		// out 16bit 
-
 	always @(negedge clk)	begin
 		if(in[15])
 			out = {in[15], (~in[14:0] + 'b1)};
 		else
-			out = 16'h8000 - in;
+			out = 16'h8000 - in;	// this for the other half wave
 	end 
 endmodule
-
-
 
 //------------------------------------------------------------------------------
 //          PCM5102 2 Channel DAC
@@ -356,58 +335,136 @@ endmodule
 
 
 //------------------------------------------------------------------------------
-//          AD7606 8 channel ADC
+//          AD7606/7 8 channel ADC
 //------------------------------------------------------------------------------
 // http://www.analog.com/media/en/technical-documentation/data-sheets/AD7606_7606-6_7606-4.pdf
-module AD7606(clk,audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8,conv,rdclk,fdata,db7,db8,busy);
-	input 				clk;		// sysclk 100MHz
-	input 				db7;		// serial data 1-4 
-	input 				db8;		// serial data 5-8 
-	input				busy;		// ic is busy (we just ignore this and wait a time)
-	input				fdata;		// ic send first word (we just ignore this)
-	output 				rdclk;		// data clk 
-	output 				conv;		// start conversion a/b 
-
-	output [15:0] 	audio1,audio2,audio3,audio4,audio5,audio6,audio7,audio8;			// 1 channel audio data
+module AD7606(
+	input 				clk,		// sysclk 100MHz
+	input 				db7,		// serial data 1-4 
+	input 				db8,		// serial data 5-8 
+	input				busy,		// ic is busy (we just ignore this and wait a time)
+	input				fdata,		// ic send first word (we just ignore this)
+	output 				rdclk,		// data clk 
+	output 				conv,		// start conversion a/b 
+	output 				cs,			// chipselect
+	output reg [15:0] 	audio1=16'b0, 
+	output reg [15:0]	audio2=16'b0, 
+	output reg [15:0]	audio3=16'b0, 
+	output reg [15:0]	audio4=16'b0,
+	output reg [15:0]	audio5=16'b0, 
+	output reg [15:0]	audio6=16'b0, 
+	output reg [15:0]	audio7=16'b0, 
+	output reg [15:0]	audio8=16'b0 );			// 1 channel audio data
 
 	reg [15:0] raw_adc1,raw_adc2,raw_adc3,raw_adc4,raw_adc5,raw_adc6,raw_adc7,raw_adc8;
 
 	parameter ADC_CLK_DIV = 1;		// clk div by 2
 
-	reg [ADC_CLK_DIV:0]	adc_clk;		// clk divider counter
-	reg [7:0]   		adsword;		// 8 bit = 16 steps for 4 channels + wait time
+	reg [ADC_CLK_DIV:0]	adc_clk = 2'b0;		// clk divider counter
+	reg [7:0]   		adsword = 8'b0;		// 8 bit = 16 steps for 4 channels + wait time
 		
 	always @(posedge clk) begin
 		adc_clk 	<= adc_clk + 1;
 	end	
-
-
-	always @(posedge adc_clk[ADC_CLK_DIV]) begin
-		if(~adsword[7]) begin
-			case (adsword[6:5])
-				2'b00:	begin  raw_adc1[15 - adsword[4:1] ]  <= db7;  raw_adc5[15 - adsword[4:1] ]  <= db8;   	end
-				2'b01:	begin  raw_adc2[15 - adsword[4:1] ]  <= db7;  raw_adc6[15 - adsword[4:1] ]  <= db8;   	end
-				2'b10:	begin  raw_adc3[15 - adsword[4:1] ]  <= db7;  raw_adc7[15 - adsword[4:1] ]  <= db8;   	end
-				2'b11:	begin  raw_adc4[15 - adsword[4:1] ]  <= db7;  raw_adc8[15 - adsword[4:1] ]  <= db8;   	end
-			endcase
-			rdclk		<= adsword[0];
-		end else begin
-			audio1 <= raw_adc1 + 16'h8000;	// h8000 is normal scale but, offset for adc
-			audio2 <= raw_adc2 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio3 <= raw_adc3 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio4 <= raw_adc4 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio5 <= raw_adc5 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio6 <= raw_adc6 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio7 <= raw_adc7 + 16'h5000;	// h8000 is normal scale but, offset for adc
-			audio8 <= raw_adc8 + 16'h5000;	// h8000 is normal scale but, offset for adc
-
-			rdclk		<= 1'b1;
-			if(adsword[6:0] == 7'b0000001)
-				conv	 	<= 1'b0;
-			else
-				conv	 	<= 1'b1;
-		end
+	always @(posedge adc_clk[0]) begin
 		adsword		<= adsword + 1;
+	end	
+	
+	// assign rdclk = ~(adsword[0] | adsword[7]  ); // 7606
+	//assign rdclk = ~(adsword[0] | adsword[7]   ) | ( adsword[7] |  adsword[4:2] == 3'b111); // 7607
+	assign conv  = (adsword[7:0] != 8'b10000001);
+	assign cs	 = adsword[7];
+
+  	wire  [3:0] bitadr ;
+	assign bitadr = 15 - adsword[4:1];
+	
+    always @(posedge adsword[7] ) begin
+        audio1 <= raw_adc1 + 16'h8000; 
+        audio2 <= raw_adc2 + 16'h8000;
+        audio3 <= raw_adc3 + 16'h8000; 
+        audio4 <= raw_adc4 + 16'h8000; 
+        audio5 <= raw_adc5 + 16'h8000; 
+        audio6 <= raw_adc6 + 16'h8000;
+        audio7 <= raw_adc7 + 16'h8000; 
+        audio8 <= raw_adc8 + 16'h8000;
+    end
+  
+
+	 always @(posedge adc_clk[0] ) begin
+    	case (adsword[7:0])
+          8'b00000000:	begin  raw_adc1[15]	 <= db7;  raw_adc5[15]     <= db8;  rdclk <= 0;	end	          8'b00000001:	begin  rdclk <= 1;	 end
+          8'b00000010:	begin  raw_adc1[14]	 <= db7;  raw_adc5[14]     <= db8;  rdclk <= 0;	end	          8'b00000011:	begin  rdclk <= 1;	 end
+          8'b00000100:	begin  raw_adc1[13]	 <= db7;  raw_adc5[13]     <= db8;  rdclk <= 0;	end	          8'b00000101:	begin  rdclk <= 1;	 end
+          8'b00000110:	begin  raw_adc1[12]	 <= db7;  raw_adc5[12]     <= db8;  rdclk <= 0;	end	          8'b00000111:	begin  rdclk <= 1;	 end
+          8'b00001000:	begin  raw_adc1[11]	 <= db7;  raw_adc5[11]     <= db8;  rdclk <= 0;	end	          8'b00001001:	begin  rdclk <= 1;	 end
+          8'b00001010:	begin  raw_adc1[10]	 <= db7;  raw_adc5[10]     <= db8;  rdclk <= 0;	end	          8'b00001011:	begin  rdclk <= 1;	 end
+          8'b00001100:	begin  raw_adc1[9]	 <= db7;  raw_adc5[9]      <= db8;  rdclk <= 0;	end	          8'b00001101:	begin  rdclk <= 1;	 end
+          8'b00001110:	begin  raw_adc1[8]	 <= db7;  raw_adc5[8]      <= db8;  rdclk <= 0;	end	          8'b00001111:	begin  rdclk <= 1;	 end
+          8'b00010000:	begin  raw_adc1[7]	 <= db7;  raw_adc5[7]      <= db8;  rdclk <= 0;	end	          8'b00010001:	begin  rdclk <= 1;	 end
+          8'b00010010:	begin  raw_adc1[6]	 <= db7;  raw_adc5[6]      <= db8;  rdclk <= 0;	end	          8'b00010011:	begin  rdclk <= 1;	 end
+          8'b00010100:	begin  raw_adc1[5]	 <= db7;  raw_adc5[5]      <= db8;  rdclk <= 0;	end	          8'b00010101:	begin  rdclk <= 1;	 end
+          8'b00010110:	begin  raw_adc1[4]	 <= db7;  raw_adc5[4]      <= db8;  rdclk <= 0;	end	          8'b00010111:	begin  rdclk <= 1;	 end
+          8'b00011000:	begin  raw_adc1[3]	 <= db7;  raw_adc5[3]      <= db8;  rdclk <= 0;	end	          8'b00011001:	begin  rdclk <= 1;	 end
+          8'b00011010:	begin  raw_adc1[2]	 <= db7;  raw_adc5[2]      <= db8;  rdclk <= 0;	end	          8'b00011011:	begin  rdclk <= 1;	 end
+          8'b00011100:	begin  raw_adc1[1]	 <= db7;  raw_adc5[1]      <= db8;  rdclk <= 1;	end	          8'b00011101:	begin  rdclk <= 1;	 end // keep rdclk 1 for 7607
+          8'b00011110:	begin  raw_adc1[0]	 <= db7;  raw_adc5[0]      <= db8;  rdclk <= 1;	end	          8'b00011111:	begin  rdclk <= 1;	 end // keep rdclk 1 for 7607
+          
+
+          8'b00100000:	begin  raw_adc2[15]	 <= db7;  raw_adc6[15]     <= db8;  rdclk <= 0;	end	          8'b00100001:	begin  rdclk <= 1;	 end
+          8'b00100010:	begin  raw_adc2[14]	 <= db7;  raw_adc6[14]     <= db8;  rdclk <= 0;	end	          8'b00100011:	begin  rdclk <= 1;	 end
+          8'b00100100:	begin  raw_adc2[13]	 <= db7;  raw_adc6[13]     <= db8;  rdclk <= 0;	end	          8'b00100101:	begin  rdclk <= 1;	 end
+          8'b00100110:	begin  raw_adc2[12]	 <= db7;  raw_adc6[12]     <= db8;  rdclk <= 0;	end	          8'b00100111:	begin  rdclk <= 1;	 end
+          8'b00101000:	begin  raw_adc2[11]	 <= db7;  raw_adc6[11]     <= db8;  rdclk <= 0;	end	          8'b00101001:	begin  rdclk <= 1;	 end
+          8'b00101010:	begin  raw_adc2[10]	 <= db7;  raw_adc6[10]     <= db8;  rdclk <= 0;	end	          8'b00101011:	begin  rdclk <= 1;	 end
+          8'b00101100:	begin  raw_adc2[9]	 <= db7;  raw_adc6[9]      <= db8;  rdclk <= 0;	end	          8'b00101101:	begin  rdclk <= 1;	 end
+          8'b00101110:	begin  raw_adc2[8]	 <= db7;  raw_adc6[8]      <= db8;  rdclk <= 0;	end	          8'b00101111:	begin  rdclk <= 1;	 end
+          8'b00110000:	begin  raw_adc2[7]	 <= db7;  raw_adc6[7]      <= db8;  rdclk <= 0;	end	          8'b00110001:	begin  rdclk <= 1;	 end
+          8'b00110010:	begin  raw_adc2[6]	 <= db7;  raw_adc6[6]      <= db8;  rdclk <= 0;	end	          8'b00110011:	begin  rdclk <= 1;	 end
+          8'b00110100:	begin  raw_adc2[5]	 <= db7;  raw_adc6[5]      <= db8;  rdclk <= 0;	end	          8'b00110101:	begin  rdclk <= 1;	 end
+          8'b00110110:	begin  raw_adc2[4]	 <= db7;  raw_adc6[4]      <= db8;  rdclk <= 0;	end	          8'b00110111:	begin  rdclk <= 1;	 end
+          8'b00111000:	begin  raw_adc2[3]	 <= db7;  raw_adc6[3]      <= db8;  rdclk <= 0;	end	          8'b00111001:	begin  rdclk <= 1;	 end
+          8'b00111010:	begin  raw_adc2[2]	 <= db7;  raw_adc6[2]      <= db8;  rdclk <= 0;	end	          8'b00111011:	begin  rdclk <= 1;	 end
+          8'b00111100:	begin  raw_adc2[1]	 <= db7;  raw_adc6[1]      <= db8;  rdclk <= 1;	end	          8'b00111101:	begin  rdclk <= 1;	 end
+          8'b00111110:	begin  raw_adc2[0]	 <= db7;  raw_adc6[0]      <= db8;  rdclk <= 1;	end	          8'b00111111:	begin  rdclk <= 1;	 end
+
+
+          8'b01000000:	begin  raw_adc3[15]	 <= db7;  raw_adc7[15]     <= db8;  rdclk <= 0;	end	          8'b01000001:	begin  rdclk <= 1;	 end
+          8'b01000010:	begin  raw_adc3[14]	 <= db7;  raw_adc7[14]     <= db8;  rdclk <= 0;	end	          8'b01000011:	begin  rdclk <= 1;	 end
+          8'b01000100:	begin  raw_adc3[13]	 <= db7;  raw_adc7[13]     <= db8;  rdclk <= 0;	end	          8'b01000101:	begin  rdclk <= 1;	 end
+          8'b01000110:	begin  raw_adc3[12]	 <= db7;  raw_adc7[12]     <= db8;  rdclk <= 0;	end	          8'b01000111:	begin  rdclk <= 1;	 end
+          8'b01001000:	begin  raw_adc3[11]	 <= db7;  raw_adc7[11]     <= db8;  rdclk <= 0;	end	          8'b01001001:	begin  rdclk <= 1;	 end
+          8'b01001010:	begin  raw_adc3[10]	 <= db7;  raw_adc7[10]     <= db8;  rdclk <= 0;	end	          8'b01001011:	begin  rdclk <= 1;	 end
+          8'b01001100:	begin  raw_adc3[9]	 <= db7;  raw_adc7[9]      <= db8;  rdclk <= 0;	end	          8'b01001101:	begin  rdclk <= 1;	 end
+          8'b01001110:	begin  raw_adc3[8]	 <= db7;  raw_adc7[8]      <= db8;  rdclk <= 0;	end	          8'b01001111:	begin  rdclk <= 1;	 end
+          8'b01010000:	begin  raw_adc3[7]	 <= db7;  raw_adc7[7]      <= db8;  rdclk <= 0;	end	          8'b01010001:	begin  rdclk <= 1;	 end
+          8'b01010010:	begin  raw_adc3[6]	 <= db7;  raw_adc7[6]      <= db8;  rdclk <= 0;	end	          8'b01010011:	begin  rdclk <= 1;	 end
+          8'b01010100:	begin  raw_adc3[5]	 <= db7;  raw_adc7[5]      <= db8;  rdclk <= 0;	end	          8'b01010101:	begin  rdclk <= 1;	 end
+          8'b01010110:	begin  raw_adc3[4]	 <= db7;  raw_adc7[4]      <= db8;  rdclk <= 0;	end	          8'b01010111:	begin  rdclk <= 1;	 end
+          8'b01011000:	begin  raw_adc3[3]	 <= db7;  raw_adc7[3]      <= db8;  rdclk <= 0;	end	          8'b01011001:	begin  rdclk <= 1;	 end
+          8'b01011010:	begin  raw_adc3[2]	 <= db7;  raw_adc7[2]      <= db8;  rdclk <= 0;	end	          8'b01011011:	begin  rdclk <= 1;	 end
+          8'b01011100:	begin  raw_adc3[1]	 <= db7;  raw_adc7[1]      <= db8;  rdclk <= 1;	end	          8'b01011101:	begin  rdclk <= 1;	 end
+          8'b01011110:	begin  raw_adc3[0]	 <= db7;  raw_adc7[0]      <= db8;  rdclk <= 1;	end	          8'b01011111:	begin  rdclk <= 1;	 end
+          
+
+          8'b01100000:	begin  raw_adc4[15]	 <= db7;  raw_adc8[15]     <= db8;  rdclk <= 0;	end	          8'b01100001:	begin  rdclk <= 1;	 end
+          8'b01100010:	begin  raw_adc4[14]	 <= db7;  raw_adc8[14]     <= db8;  rdclk <= 0;	end	          8'b01100011:	begin  rdclk <= 1;	 end
+          8'b01100100:	begin  raw_adc4[13]	 <= db7;  raw_adc8[13]     <= db8;  rdclk <= 0;	end	          8'b01100101:	begin  rdclk <= 1;	 end
+          8'b01100110:	begin  raw_adc4[12]	 <= db7;  raw_adc8[12]     <= db8;  rdclk <= 0;	end	          8'b01100111:	begin  rdclk <= 1;	 end
+          8'b01101000:	begin  raw_adc4[11]	 <= db7;  raw_adc8[11]     <= db8;  rdclk <= 0;	end	          8'b01101001:	begin  rdclk <= 1;	 end
+          8'b01101010:	begin  raw_adc4[10]	 <= db7;  raw_adc8[10]     <= db8;  rdclk <= 0;	end	          8'b01101011:	begin  rdclk <= 1;	 end
+          8'b01101100:	begin  raw_adc4[9]	 <= db7;  raw_adc8[9]      <= db8;  rdclk <= 0;	end	          8'b01101101:	begin  rdclk <= 1;	 end
+          8'b01101110:	begin  raw_adc4[8]	 <= db7;  raw_adc8[8]      <= db8;  rdclk <= 0;	end	          8'b01101111:	begin  rdclk <= 1;	 end
+          8'b01110000:	begin  raw_adc4[7]	 <= db7;  raw_adc8[7]      <= db8;  rdclk <= 0;	end	          8'b01110001:	begin  rdclk <= 1;	 end
+          8'b01110010:	begin  raw_adc4[6]	 <= db7;  raw_adc8[6]      <= db8;  rdclk <= 0;	end	          8'b01110011:	begin  rdclk <= 1;	 end
+          8'b01110100:	begin  raw_adc4[5]	 <= db7;  raw_adc8[5]      <= db8;  rdclk <= 0;	end	          8'b01110101:	begin  rdclk <= 1;	 end
+          8'b01110110:	begin  raw_adc4[4]	 <= db7;  raw_adc8[4]      <= db8;  rdclk <= 0;	end	          8'b01110111:	begin  rdclk <= 1;	 end
+          8'b01111000:	begin  raw_adc4[3]	 <= db7;  raw_adc8[3]      <= db8;  rdclk <= 0;	end	          8'b01111001:	begin  rdclk <= 1;	 end
+          8'b01111010:	begin  raw_adc4[2]	 <= db7;  raw_adc8[2]      <= db8;  rdclk <= 0;	end	          8'b01111011:	begin  rdclk <= 1;	 end
+          8'b01111100:	begin  raw_adc4[1]	 <= db7;  raw_adc8[1]      <= db8;  rdclk <= 1;	end	          8'b01111101:	begin  rdclk <= 1;	 end
+          8'b01111110:	begin  raw_adc4[0]	 <= db7;  raw_adc8[0]      <= db8;  rdclk <= 1;	end	          8'b01111111:	begin  rdclk <= 1;	 end
+          
+          
+		endcase
 	end	
 endmodule
 
@@ -494,7 +551,7 @@ module VCA( vca_in_a, vca_in_b, vca_out,clk);
 	  );
 
 	//16x16 => 32 unsigned pipelined multiply
-	defparam vca_mul.B_SIGNED                  = 1'b0;
+	defparam vca_mul.B_SIGNED                  = 1'b1;
 	defparam vca_mul.A_SIGNED                  = 1'b0;
 	defparam vca_mul.MODE_8x8                  = 1'b0;
 
@@ -699,7 +756,7 @@ module SAW( clk,pitch, audio_out);
 	output reg [15:0]	audio_out;
 	reg [15:0] tmp;
 		
-
+/*
 	// Alles wieder grade biegen!
 	always @(negedge clk)	begin
 		if(tmp[15])
@@ -707,7 +764,7 @@ module SAW( clk,pitch, audio_out);
 		else
 			audio_out = 16'h8000 - tmp;
 	end 
-
+*/
 		
 	always @(posedge clk) begin
 		tmp <= tmp - 2;
@@ -723,18 +780,13 @@ module TRI( clk,pitch, audio_out);
 	reg count_down;
 	reg [15:0] tmp;
 
-
-
 	// Alles wieder grade biegen!
-	always @(negedge clk)	begin
+	always @(posedge clk)	begin
 		if(tmp[15])
 			audio_out = {tmp[15], (~tmp[14:0] + 'b1)};
 		else
 			audio_out = 16'h8000 - tmp;
 	end 
-
-
-
 		
 	always @(negedge clk)	begin
 		if (count_down == 1'b0)	begin
