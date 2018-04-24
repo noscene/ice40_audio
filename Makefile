@@ -9,7 +9,8 @@ all: $(PROJ).rpt $(PROJ).bin header
 %.blif: %.v
 
 	php hexgen.php > sine_table.hex
-	yosys -v 1 -p 'synth_ice40 -top top -blif $@' $<
+	php sin_pi2.php > sin_pi2.hex
+	yosys -v 2 -p 'synth_ice40 -top top -blif $@' $<
 
 %.asc: $(PIN_DEF) %.blif
 	#arachne-pnr -d 8k  -o $@ -p $^ -P tq144:4k

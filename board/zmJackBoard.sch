@@ -13837,7 +13837,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <instance part="GND1" gate="1" x="-129.54" y="96.52"/>
 <instance part="GND2" gate="1" x="83.82" y="45.72"/>
 <instance part="R22" gate="G$1" x="-119.38" y="116.84"/>
-<instance part="C20" gate="G$1" x="-111.76" y="106.68"/>
+<instance part="C20" gate="G$1" x="-114.3" y="106.68"/>
 <instance part="J4" gate="G$1" x="-142.24" y="71.12" rot="MR0"/>
 <instance part="R40" gate="G$1" x="-104.14" y="73.66" rot="MR0"/>
 <instance part="R41" gate="G$1" x="-124.46" y="81.28"/>
@@ -13930,8 +13930,8 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <instance part="R75" gate="G$1" x="-2.54" y="-15.24"/>
 <instance part="R16" gate="G$1" x="-7.62" y="106.68" rot="R90"/>
 <instance part="VSS10" gate="G$1" x="-7.62" y="99.06"/>
-<instance part="R17" gate="G$1" x="-2.54" y="109.22" rot="R90"/>
-<instance part="GND20" gate="1" x="-2.54" y="101.6"/>
+<instance part="R17" gate="G$1" x="0" y="109.22" rot="R90"/>
+<instance part="GND20" gate="1" x="0" y="101.6"/>
 <instance part="R33" gate="G$1" x="-7.62" y="68.58" rot="R90"/>
 <instance part="R34" gate="G$1" x="0" y="68.58" rot="R90"/>
 <instance part="R53" gate="G$1" x="-5.08" y="15.24" rot="R90"/>
@@ -13945,7 +13945,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <instance part="R43" gate="G$1" x="-104.14" y="53.34" rot="R90"/>
 <instance part="R44" gate="G$1" x="-96.52" y="53.34" rot="R90"/>
 <instance part="R23" gate="G$1" x="-104.14" y="104.14" rot="R90"/>
-<instance part="R24" gate="G$1" x="-99.06" y="104.14" rot="R90"/>
+<instance part="R24" gate="G$1" x="-96.52" y="104.14" rot="R90"/>
 <instance part="VSS1" gate="G$1" x="-104.14" y="96.52"/>
 <instance part="VSS2" gate="G$1" x="-7.62" y="60.96"/>
 <instance part="VSS3" gate="G$1" x="-104.14" y="45.72"/>
@@ -13955,7 +13955,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <instance part="VSS7" gate="G$1" x="-5.08" y="7.62"/>
 <instance part="GND21" gate="1" x="0" y="60.96"/>
 <instance part="GND22" gate="1" x="-96.52" y="45.72"/>
-<instance part="GND23" gate="1" x="-99.06" y="96.52"/>
+<instance part="GND23" gate="1" x="-96.52" y="96.52"/>
 <instance part="GND24" gate="1" x="-99.06" y="-5.08"/>
 <instance part="GND25" gate="1" x="-99.06" y="-48.26"/>
 <instance part="GND26" gate="1" x="2.54" y="-38.1"/>
@@ -14047,7 +14047,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <wire x1="-129.54" y1="111.76" x2="-129.54" y2="101.6" width="0.1524" layer="91"/>
 <wire x1="-129.54" y1="101.6" x2="-129.54" y2="99.06" width="0.1524" layer="91"/>
 <pinref part="C20" gate="G$1" pin="2"/>
-<wire x1="-111.76" y1="101.6" x2="-129.54" y2="101.6" width="0.1524" layer="91"/>
+<wire x1="-114.3" y1="101.6" x2="-129.54" y2="101.6" width="0.1524" layer="91"/>
 <junction x="-129.54" y="101.6"/>
 </segment>
 <segment>
@@ -14251,13 +14251,12 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <segment>
 <pinref part="R22" gate="G$1" pin="2"/>
 <pinref part="R20" gate="G$1" pin="S"/>
-<wire x1="-114.3" y1="116.84" x2="-111.76" y2="116.84" width="0.1524" layer="91"/>
 <pinref part="C20" gate="G$1" pin="1"/>
-<wire x1="-111.76" y1="116.84" x2="-109.22" y2="116.84" width="0.1524" layer="91"/>
-<wire x1="-111.76" y1="109.22" x2="-111.76" y2="116.84" width="0.1524" layer="91"/>
-<junction x="-111.76" y="116.84"/>
-<wire x1="-111.76" y1="116.84" x2="-111.76" y2="154.94" width="0.1524" layer="91"/>
-<wire x1="-111.76" y1="154.94" x2="38.1" y2="154.94" width="0.1524" layer="91"/>
+<wire x1="-114.3" y1="116.84" x2="-109.22" y2="116.84" width="0.1524" layer="91"/>
+<wire x1="-114.3" y1="109.22" x2="-114.3" y2="116.84" width="0.1524" layer="91"/>
+<junction x="-114.3" y="116.84"/>
+<wire x1="-114.3" y1="116.84" x2="-114.3" y2="154.94" width="0.1524" layer="91"/>
+<wire x1="-114.3" y1="154.94" x2="38.1" y2="154.94" width="0.1524" layer="91"/>
 <pinref part="R2" gate="G$1" pin="1"/>
 <wire x1="38.1" y1="154.94" x2="38.1" y2="139.7" width="0.1524" layer="91"/>
 </segment>
@@ -14831,7 +14830,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <pinref part="R10" gate="G$1" pin="A"/>
 <wire x1="-17.78" y1="104.14" x2="-17.78" y2="111.76" width="0.1524" layer="91"/>
 <pinref part="R17" gate="G$1" pin="2"/>
-<wire x1="-2.54" y1="114.3" x2="-7.62" y2="114.3" width="0.1524" layer="91"/>
+<wire x1="0" y1="114.3" x2="-7.62" y2="114.3" width="0.1524" layer="91"/>
 <wire x1="-7.62" y1="114.3" x2="-12.7" y2="114.3" width="0.1524" layer="91"/>
 <wire x1="-12.7" y1="114.3" x2="-12.7" y2="104.14" width="0.1524" layer="91"/>
 <wire x1="-12.7" y1="104.14" x2="-17.78" y2="104.14" width="0.1524" layer="91"/>
@@ -14876,7 +14875,7 @@ http://www.ee.siue.edu/~alozows/library/datasheets/BFR96.pdf</description>
 <pinref part="R23" gate="G$1" pin="2"/>
 <wire x1="-104.14" y1="109.22" x2="-104.14" y2="111.76" width="0.1524" layer="91"/>
 <pinref part="R24" gate="G$1" pin="2"/>
-<wire x1="-99.06" y1="109.22" x2="-104.14" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="-96.52" y1="109.22" x2="-104.14" y2="109.22" width="0.1524" layer="91"/>
 <junction x="-104.14" y="109.22"/>
 </segment>
 </net>

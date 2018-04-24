@@ -1,4 +1,7 @@
 #include <samd21.h>
+#include <string.h>
+#include <stdio.h>
+//#include <swo.h>
 #include "../audiotest.h"
 
 
@@ -31,6 +34,28 @@ static inline void digitalWrite(int p, int b) {
 		REG_PORT_OUT0 &= ~(1<<p);
 	}
 }
+
+// write to arm-none-eabi-gdb console
+void put_char(char c){
+    __asm (
+    "mov r0, #0x03\n"   /* SYS_WRITEC */
+    "mov r1, %[msg]\n"
+    "bkpt #0xAB\n"
+    :
+    : [msg] "r" (&c)
+    : "r0", "r1"
+    );
+}
+
+void put_string(char * s){
+	for(int i = 0 ; i < strlen(s); i++){
+		 put_char(s[i]);		
+		//ITM_SendChar(s[i]);
+	}
+}
+
+
+
 
 int digitalRead(int p) {
 	if(REG_PORT_IN0 & (1<<p)) return 1;
@@ -319,15 +344,15 @@ int prog_bitstream() {
     }
 
 
-
+	// bang 8 bits
     if(d & 0x80) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
     if(d & 0x40) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
     if(d & 0x20) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
     if(d & 0x10) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
-    if(d & 0x8) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
-    if(d & 0x4) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
-    if(d & 0x2) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
-    if(d & 0x1) REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
+    if(d & 0x8)  REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
+    if(d & 0x4)  REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
+    if(d & 0x2)  REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
+    if(d & 0x1)  REG_PORT_OUTSET0 = mosiPin; else  REG_PORT_OUTCLR0 = mosiPin;  iceClock();
     
     
 
@@ -355,7 +380,14 @@ int prog_bitstream() {
 
   bool cdone_high = digitalRead(RPI_ICE_CDONE) == HIGH;
   reset_inout();
+  
+ // printf("sdasdasd");
+  put_string("Hallo\n");
+  
   if (!cdone_high) return 0;
+
+
+
 
   return 1;
 }
