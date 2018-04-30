@@ -55,7 +55,7 @@ module top (
 				.din(DIN),
 				.bck(BCK),
 				.lrck(LRCK) );
-
+/*
 
 	G2T gate2trigger (	.clk(LRCK),
 						.gate(adc1[15:15]),
@@ -75,210 +75,70 @@ module top (
 	
 	B2UNI16 bu1(	.clk(clk), .in(adc5), .out(left_out));
 
-/*
-	NOISE noise(	.clk(LRCK), 
-					.audio_out(noise_out) );
-*/
+
+
+
 	SUPERSAW ssaw(	.clk(LRCK), 
 					.pitch(adc5),
 					.audio_out(noise_out) );
 
-/*
+
 	SAW triOsc(		.clk(clk), 
 					.pitch(adc5),
 					.audio_out(right_out) );
 
 */	
-	reg [9:0] thea_sin2;		
-	always @(posedge LRCK)	begin
-		thea_sin2<=thea_sin2+2; 
+
+	wire [15:0 ]the_inc;
+	wire [15:0 ]the_tmp;
+
+	V2 sqcv( 	.clk(clk),
+				.vca_in_a(adc1),				// adc1 pitch
+				.vca_in_b(adc1),
+				.vca_out(the_tmp) );	
+	V2 sqcv2( 	.clk(clk),
+				.vca_in_a(the_tmp),
+				.vca_in_b(the_tmp),
+				.vca_out(the_inc) );	
+
+	reg [28:0] thea_sin2;		
+	always @(posedge clk)	begin
+		thea_sin2<=thea_sin2+the_inc ; 
 	end
 	
 	wire  [15:0] mysinosc;	
 	mem_2sin so2(	.clk(clk), 
-					.addr(thea_sin2), 
+					.addr(thea_sin2[28:19]), 
 					.sin_out(mysinosc));
-	
-	VCA vca2( 	.clk(clk),
-				.vca_in_a(adc1),
-				.vca_in_b(mysinosc),
-				.vca_out(right_out) );
-
-
-/*
-
-	// Cordic stuff
-	VCA square( 	.clk(clk),
-					.vca_in_a(adc1),
-					.vca_in_b(adc1),
-					.vca_out(thea_inc) );
-	wire [15:0] thea_inc;
-
-	reg  signed [31:0] thea;
-	wire [15:0] cordsin;
-	wire signed [11:0] cordout;
-	reg  signed [5:0] multest = 15;
-	
-	assign cordsin = cordout * multest;
-	reg  signed  [11:0] Xin = 1000/1.647; 
-	reg  signed  [11:0] Yin = 1;
-	CORDIC cordic1 ( 	.clock(LRCK), 	
-						 // .cosine, 
-						.sine(cordout), 
-						.x_start(Xin), 
-						.y_start(Yin), 
-					    .angle(thea)	
-						);
+	wire  [15:0] mynoise;	
+	NOISE noise(	.clk(thea_sin2[24]), 
+					.audio_out(mynoise) );
+					
+	wire [15:0] to_vca;
 
 	always @(posedge LRCK) begin
-		thea = thea + ( thea_inc << 14 );
-		//thea = thea + 22906; // 1Hz
-		//thea = thea + 10078855; // 440Hz
-	end
-
-/* 
-/*	
-	wire [15:0] right_out_main;			
-	VCA vca1( 	.clk(clk),
-				.vca_in_a(adc1),
-				.vca_in_b(left_out[19:4]),
-				.vca_out(right_out_main) );				
-	assign 	right_out_main = 	adc1;	// bypass the VCA for Testing	
-*/
-
-
-/*
-	ALSYNTH add_lut_synth( 	.sample_clk(LRCK),
-							.clk(clk),
-							.pitch_mod(adc1),
-							.audio_out(left_out) );	
-
-*/
-
-	
-
-/*
-
-// Amplitude of Waveform Harmonics
-// Harmonic       F     2F     3F     4F     5F     6F     7F     8F     9F 
-// Triangle       1      -    -1/9     -     1/25    -    -1/49    -     1/81 
-// Square         1      -     1/3     -     1/5     -     1/7     -     1/9 
-// Saw            1     1/2    1/3    1/4    1/5    1/6    1/7    1/8    1/9 
-
-
-// https://stackoverflow.com/questions/37909010/verilog-signed-multiplication-multiplying-numbers-of-different-sizes
-// http://billauer.co.il/blog/2012/10/signed-arithmetics-verilog/
-// https://stackoverflow.com/questions/24162329/verilog-signed-vs-unsigned-samples-and-first/24165896
-
-
-  	// Generate table of bin values
-//  	wire [31:0] morph [0:7];
-  	//					 Saw	   Sqr     Tri     Sin
-//	assign morph[7]	= {8'd128 , 8'd128, 8'd128, 8'd128 }; 
-//	assign morph[6]	= {8'd64  , 8'd0,   8'd0,	8'd0   }; 
-//	assign morph[5]	= {8'd43  , 8'd43,  8'd14,	8'd0   }; 
-//	assign morph[4]	= {8'd32  , 8'd0,   8'd0,	8'd0   }; 
-//	assign morph[3]	= {8'd26  , 8'd26,  8'd5,	8'd0   }; 
-//	assign morph[2]	= {8'd21  , 8'd0,   8'd0,	8'd0   }; 
-//	assign morph[1]	= {8'd18  , 8'd18,  8'd3,	8'd0   }; 
-//	assign morph[0]	= {8'd16  , 8'd0,   8'd0,	8'd0   }; 
-	
-	
-	wire  [11:0] morph [0:7];
-  	//					 Saw	   Sqr     Tri     Sin
-	assign morph[0]	= {11'd8 }; 
-	assign morph[1]	= {11'd3   }; 
-	assign morph[2]	= {11'd0   }; 
-	assign morph[3]	= {11'd0   }; 
-	assign morph[4]	= {11'd0  }; 
-	assign morph[5]	= {11'd0   }; 
-	assign morph[6]	= {11'd0   }; 
-	assign morph[7]	= {11'd0   }; 
-	
-	 
-
-	reg [5:0] cordic_add_stages;
-	wire [31:0]  thea_add; 
-
-	wire [31:0] bin_factor32;
-	wire [8:0]  bin_factor8;
-	
-	wire [2:0] harmonics;
-	
-	// sin gen
-	reg  [15:0] cordsin;		// wire statt reg
-	wire [15:0] cordout;
-	// assign cordsin = cordout << 4;
-	reg  signed  [11:0] Xin = 1000/1.647; 
-	reg  signed  [11:0] Yin = 1;
-	wire  [22:0] sum [0:7];
-	wire  [31:0] bin_thea;
-	// reg  [4:0]  harmonic_amp;		 
-		
-	wire cordic_clk;	
-		
-	wire  [15:0] cordTemp;
-
-	// assi gn cordsin = cordTemp <<< 4;
-		
-	CORDIC cordic1 ( 	.clock(cordic_clk), 	
-						 // .cosine, 
-						.sine(cordout), 
-						.x_start(Xin), 
-						.y_start(Yin), 
-					    .angle(bin_thea)	
-						);
- 
-
-	parameter ramp = 65536 * 16; 
-	
-	reg signed [22:0] produkt;
-	reg [1:0] stages;
-
-	assign harmonics = cordic_add_stages[5:3];
-	assign stages = cordic_add_stages[2:1];
-	
-	// reg [22:0] allsum;
-	
-	// assign bin_thea = thea_add;
-	
-	wire  [31:0] cordsum;
-	// assign cordsin = cordsum[31:16];
-	
-	always @(posedge clk) begin
-
-
-		bin_factor8 		<= morph[harmonics];
-	//	bin_factor8 		<= bin_factor32[31:24];
-
-//		case (adc1[13:12])	// select Wave form
-//			2'b00:	begin  bin_factor8 <= bin_factor32[31:24];  end
-//			2'b01:	begin  bin_factor8 <= bin_factor32[23:16];  end
-//			2'b10:	begin  bin_factor8 <= bin_factor32[15:8];   end
-//			2'b11:	begin  bin_factor8 <= bin_factor32[7:0];    end 
-
-//		endcase
-		
-		case (stages)	// select Wave form
-			2'b00:	begin  bin_thea <= thea_add * 4   ; 	end 
-			2'b01:	begin  cordic_clk <= 1'b1;							end
-			2'b10:	begin  sum[harmonics] <=  (cordout ) * bin_factor8  ;   end   // !!!!!!!!!!!!!!!!!! bin_factor8 macht das problem
-			2'b11:	begin  cordic_clk <= 1'b0;	end
+		case (adc2[15:13])						// adc2 wave form select
+			3'b000:	begin  to_vca  <= 16'd0;	 	  				end		// off
+			3'b001:	begin  to_vca  <= mynoise; 					end		// white noise
+			3'b010:	begin  to_vca  <= thea_sin2[28:13];   		end		// saw
+			3'b011:	begin  to_vca  <= {thea_sin2[28], 15'd0};		end		// square
+			3'b100:	begin  to_vca  <= {thea_sin2[28:27], 14'd0}; 	end		// multisquare
+			3'b101:	begin  to_vca  <= mysinosc; 					end		// sin
+			3'b110:	begin  to_vca  <= 16'd0;   					end		// off
+			3'b111:	begin  to_vca  <= adc1;						end		// adc1
 		endcase
-		
-		
-		if(cordic_add_stages == 6'b111111) begin 
-			 cordsin <= (sum[0]  );
-			// cordsin <= cordum <<< 6;
-			// cordsin <= sum[7] ;
-			// sum = 32'd0; 
-			thea_add <= thea_add + ramp; 
-		end
-		
-		cordic_add_stages 	<= cordic_add_stages + 1;	
- 
-	end 
-*/
+	end	
+	
+	
+	wire [15:0] cv_vca;
+	B2U2 bu_osc1(	.clk(clk), .in(adc5), .out(cv_vca));	
+	
+	VCA vca_osc1( 	.clk(clk),
+					.vca_in_a(to_vca),
+					.vca_in_b(cv_vca),
+					.vca_out(right_out) );
+					
+	
 
 endmodule
 
@@ -297,6 +157,20 @@ module B2UNI16(clk,in,out);
 			out = 16'h8000 - in;	// this for the other half wave
 	end 
 endmodule
+
+
+module B2U2(clk,in,out);
+	input 			clk;	
+	input [15:0]	in;			// in 16bit 
+	output [15:0]	out;		// out 16bit 
+	always @(negedge clk)	begin
+		if(in[15])
+			out = in <<< 1;	// this for the other half wave
+		else
+			out = 16'd0;
+	end 
+endmodule
+
 
 //------------------------------------------------------------------------------
 //          PCM5102 2 Channel DAC
@@ -370,8 +244,6 @@ module AD7606(
 		adsword		<= adsword + 1;
 	end	
 	
-	// assign rdclk = ~(adsword[0] | adsword[7]  ); // 7606
-	//assign rdclk = ~(adsword[0] | adsword[7]   ) | ( adsword[7] |  adsword[4:2] == 3'b111); // 7607
 	assign conv  = (adsword[7:0] != 8'b10000001);
 	assign cs	 = adsword[7];
 
@@ -511,10 +383,11 @@ module mem_2sin(clk, addr, sin_out);
 	always @(posedge clk) sin_out <= sine_2sym ;
 endmodule 
 
+
 //------------------------------------------------------------------------------
-//          VCA , zMors
+//          Square a value 
 //------------------------------------------------------------------------------
-module VCA( vca_in_a, vca_in_b, vca_out,clk);
+module V2( vca_in_a, vca_in_b, vca_out,clk);
 	input clk;
 	input [15:0] vca_in_a;
 	input [15:0] vca_in_b;
@@ -551,8 +424,73 @@ module VCA( vca_in_a, vca_in_b, vca_out,clk);
 	  );
 
 	//16x16 => 32 unsigned pipelined multiply
-	defparam vca_mul.B_SIGNED                  = 1'b1;
+	defparam vca_mul.B_SIGNED                  = 1'b0;
 	defparam vca_mul.A_SIGNED                  = 1'b0;
+	defparam vca_mul.MODE_8x8                  = 1'b0;
+
+	defparam vca_mul.BOTADDSUB_CARRYSELECT     = 2'b00;
+	defparam vca_mul.BOTADDSUB_UPPERINPUT      = 1'b0;
+	defparam vca_mul.BOTADDSUB_LOWERINPUT      = 2'b00;
+	defparam vca_mul.BOTOUTPUT_SELECT          = 2'b11;
+
+	defparam vca_mul.TOPADDSUB_CARRYSELECT     = 2'b00;
+	defparam vca_mul.TOPADDSUB_UPPERINPUT      = 1'b0;
+	defparam vca_mul.TOPADDSUB_LOWERINPUT      = 2'b00;
+	defparam vca_mul.TOPOUTPUT_SELECT          = 2'b11;
+
+	defparam vca_mul.PIPELINE_16x16_MULT_REG2  = 1'b1;
+	defparam vca_mul.PIPELINE_16x16_MULT_REG1  = 1'b1;
+	defparam vca_mul.BOT_8x8_MULT_REG          = 1'b1;
+	defparam vca_mul.TOP_8x8_MULT_REG          = 1'b1;
+	defparam vca_mul.D_REG                     = 1'b0;
+	defparam vca_mul.B_REG                     = 1'b1;
+	defparam vca_mul.A_REG                     = 1'b1;
+	defparam vca_mul.C_REG                     = 1'b0;
+	
+endmodule 
+
+//------------------------------------------------------------------------------
+//          VCA , zMors
+//------------------------------------------------------------------------------
+module VCA( vca_in_a, vca_in_b, vca_out,clk);
+	input clk;
+	input [15:0] vca_in_a;
+	input [15:0] vca_in_b;
+	output [15:0] vca_out;
+
+	wire  [31:0] downsample;
+	
+	assign vca_out = downsample[31:16] <<< 1;		// TODO: check this
+
+	SB_MAC16 vca_mul (
+	    .A(vca_in_a[15:0]),
+	    .B(vca_in_b[15:0]),
+	    .C(16'b0),
+	    .D(16'b0),
+	    .CLK(clk),
+	    .CE(1'b1),
+	    .IRSTTOP(1'b0),	/* reset */
+	    .IRSTBOT(1'b0), /* reset */
+	    .ORSTTOP(1'b0), /* reset */
+	    .ORSTBOT(1'b0), /* reset */
+	    .AHOLD(1'b0),
+	    .BHOLD(1'b0),
+	    .CHOLD(1'b0),
+	    .DHOLD(1'b0),
+	    .OHOLDTOP(1'b0),
+	    .OHOLDBOT(1'b0),
+	    .OLOADTOP(1'b0),
+	    .OLOADBOT(1'b0),
+	    .ADDSUBTOP(1'b0),
+	    .ADDSUBBOT(1'b0),
+	    .CO(),
+	    .CI(1'b0),
+	    .O(downsample)
+	  );
+
+	//16x16 => 32 unsigned pipelined multiply
+	defparam vca_mul.B_SIGNED                  = 1'b1;	// TODO: check this
+	defparam vca_mul.A_SIGNED                  = 1'b1;	// TODO: check this
 	defparam vca_mul.MODE_8x8                  = 1'b0;
 
 	defparam vca_mul.BOTADDSUB_CARRYSELECT     = 2'b00;
